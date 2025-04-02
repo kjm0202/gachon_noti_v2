@@ -29,28 +29,14 @@ jobs:
           cd gachon_noti_crawler
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > firebase-credentials.json
 
-      - name: 환경 변수 파일 생성
-        run: |
-          cd gachon_noti_crawler
-          echo "APPWRITE_ENDPOINT=${{ secrets.APPWRITE_ENDPOINT }}" > .env
-          echo "APPWRITE_PROJECT_ID=${{ secrets.APPWRITE_PROJECT_ID }}" >> .env
-          echo "APPWRITE_API_KEY=${{ secrets.APPWRITE_API_KEY }}" >> .env
-          echo "APPWRITE_DATABASE_ID=${{ secrets.APPWRITE_DATABASE_ID }}" >> .env
-          echo "APPWRITE_COLLECTION_ID=${{ secrets.APPWRITE_COLLECTION_ID }}" >> .env
-          echo "FIREBASE_CREDENTIALS_PATH=./firebase-credentials.json" >> .env
-          echo "FIREBASE_TOPIC=${{ secrets.FIREBASE_TOPIC }}" >> .env
-          # 환경 변수 방식 추가
-          echo "FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}" >> .env
-          echo "FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}" >> .env
-          echo "FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY }}" >> .env
-
       - name: 크롤링 실행
         env:
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
           APPWRITE_DATABASE_ID: ${{ secrets.APPWRITE_DATABASE_ID }}
-          APPWRITE_COLLECTION_ID: ${{ secrets.APPWRITE_COLLECTION_ID }}
+          APPWRITE_NOTIFICATIONS_COLLECTION_ID: ${{ secrets.APPWRITE_COLLECTION_ID }}
+          APPWRITE_USERS_COLLECTION_ID: ${{ secrets.APPWRITE_USERS_COLLECTION_ID }}
           FIREBASE_TOPIC: ${{ secrets.FIREBASE_TOPIC }}
           # 직접 환경 변수로도 전달
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
