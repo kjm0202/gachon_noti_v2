@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "가천대학교 게시판 크롤러",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
