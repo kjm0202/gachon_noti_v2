@@ -30,10 +30,11 @@ const appwrite = new Client()
 const databases = new Databases(appwrite);
 
 // Firebase 설정
+let firebaseMessaging = null;
 try {
   // 환경 변수로 Firebase 초기화 (우선)
   if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
-    initializeApp({
+    const app = initializeApp({
       credential: credential.cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
@@ -41,13 +42,15 @@ try {
       }),
     });
     console.log('Firebase 초기화 완료 (환경변수 방식)');
+    firebaseMessaging = messaging();
   } 
   // 파일로 초기화 (대체 방식)
   else if (process.env.FIREBASE_CREDENTIALS_PATH && existsSync(process.env.FIREBASE_CREDENTIALS_PATH)) {
-    initializeApp({
+    const app = initializeApp({
       credential: credential.cert(process.env.FIREBASE_CREDENTIALS_PATH)
     });
     console.log('Firebase 초기화 완료 (인증 파일 방식)');
+    firebaseMessaging = messaging();
   } else {
     console.error('Firebase 인증 정보가 없습니다. FCM 알림 기능이 비활성화됩니다.');
   }
@@ -125,11 +128,9 @@ async function processArticles(boardId, articles) {
       if (existingArticles.total === 0) {
         const documentId = `${boardId}_${articleId}`;
         
-        await databases.createDocument(
-          APPWRITE_DATABASE_ID,
-          APPWRITE_NOTIFICATIONS_COLLECTION_ID,
-          documentId,
-          {
+        // 게시글 저장 시도
+        try {
+          const notificationData = {
             boardId,
             articleId,
             title: article.title,
@@ -138,11 +139,48 @@ async function processArticles(boardId, articles) {
             author: article.author,
             description: article.description,
             createdAt: new Date().toISOString(),
+          };
+          
+          console.log(`게시글 저장 시도 (${boardId}, ${articleId}):`, JSON.stringify(notificationData));
+          
+          await databases.createDocument(
+            APPWRITE_DATABASE_ID,
+            APPWRITE_NOTIFICATIONS_COLLECTION_ID,
+            documentId,
+            notificationData
+          );
+          
+          newArticles.push(article);
+          console.log(`새 게시글 저장: [${boardId}] ${article.title}`);
+        } catch (createError) {
+          console.error(`게시글 저장 오류 (${boardId}, ${articleId}):`, createError.message);
+          // 필드 에러인 경우 필수 필드만 저장 시도
+          if (createError.message.includes('Unknown attribute')) {
+            try {
+              // 최소한의 필수 필드만 포함
+              await databases.createDocument(
+                APPWRITE_DATABASE_ID,
+                APPWRITE_NOTIFICATIONS_COLLECTION_ID,
+                documentId,
+                {
+                  boardId,
+                  articleId,
+                  title: article.title,
+                  link: article.link,
+                  pubDate: article.pubDate || new Date().toISOString(),
+                  author: article.author || '익명',
+                  description: article.description || '',
+                  createdAt: new Date().toISOString(),
+                }
+              );
+              
+              newArticles.push(article);
+              console.log(`필수 필드만으로 게시글 저장: [${boardId}] ${article.title}`);
+            } catch (retryError) {
+              console.error(`필수 필드 저장 시도 실패 (${boardId}, ${articleId}):`, retryError.message);
+            }
           }
-        );
-        
-        newArticles.push(article);
-        console.log(`새 게시글 저장: [${boardId}] ${article.title}`);
+        }
       } else {
         // 이미 처리된 게시물이므로 중단
         console.log(`기존 게시글 발견: [${boardId}] ${article.title} - 나머지 건너뛰기`);
@@ -158,7 +196,7 @@ async function processArticles(boardId, articles) {
 
 // FCM 알림 전송 함수
 async function sendNotifications(boardId, newArticles) {
-  if (newArticles.length === 0 || !messaging) return;
+  if (newArticles.length === 0 || !firebaseMessaging) return;
   
   const boardNames = {
     bachelor: '학사공지',
@@ -218,7 +256,7 @@ async function sendNotifications(boardId, newArticles) {
           };
           
           // 개별 사용자에게 메시지 전송
-          await messaging().send(message);
+          await firebaseMessaging.send(message);
           console.log(`사용자 ${userId}에게 알림 전송 완료: ${boardId} - ${article.title}`);
         } catch (error) {
           console.error(`사용자 ${userId}에게 알림 전송 오류:`, error.message);
