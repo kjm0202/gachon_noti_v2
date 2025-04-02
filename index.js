@@ -1,4 +1,4 @@
-import { get } from 'axios';
+import axios from 'axios';
 import { Parser } from 'xml2js';
 import { Client, Databases, Query } from 'node-appwrite';
 import pkg from 'firebase-admin';
@@ -70,7 +70,7 @@ const boards = [
 // RSS 피드 파싱 함수
 async function parseRSS(url) {
   try {
-    const response = await get(url);
+    const response = await axios.get(url);
     const parser = new Parser({ explicitArray: false });
     const result = await parser.parseStringPromise(response.data);
     
