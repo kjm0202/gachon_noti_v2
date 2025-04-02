@@ -17,16 +17,14 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: 'gachon_noti_crawler/package.json'
+          cache-dependency-path: 'package.json'
 
       - name: 의존성 설치
         run: |
-          cd gachon_noti_crawler
           npm install
 
       - name: Firebase 서비스 계정 파일 생성 (대체 방식)
         run: |
-          cd gachon_noti_crawler
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > firebase-credentials.json
 
       - name: 크롤링 실행
@@ -42,6 +40,6 @@ jobs:
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
           FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          FIREBASE_CREDENTIALS_PATH: './firebase-credentials.json'
         run: |
-          cd gachon_noti_crawler
           node index.js
