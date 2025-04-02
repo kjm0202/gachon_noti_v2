@@ -1,10 +1,8 @@
 import axios from 'axios';
 import { Parser } from 'xml2js';
 import { Client, Databases, Query } from 'node-appwrite';
-import pkg from 'firebase-admin';
+import admin from 'firebase-admin';
 import { existsSync } from 'fs';
-
-const { initializeApp, credential, messaging } = pkg;
 
 // 환경 변수 설정
 const APPWRITE_ENDPOINT = process.env.APPWRITE_ENDPOINT;
@@ -30,60 +28,32 @@ const appwrite = new Client()
 const databases = new Databases(appwrite);
 
 // Firebase 설정
-let firebaseApp = null;
-let firebaseMessaging = null;
 try {
   console.log('Firebase 초기화 시도...');
   
-  // credentials.json 파일 확인
-  if (process.env.FIREBASE_CREDENTIALS_PATH) {
-    console.log(`Firebase 자격증명 파일 경로: ${process.env.FIREBASE_CREDENTIALS_PATH}`);
-    console.log(`파일 존재 여부: ${existsSync(process.env.FIREBASE_CREDENTIALS_PATH)}`);
-    if (existsSync(process.env.FIREBASE_CREDENTIALS_PATH)) {
-      try {
-        // 파일 내용 테스트
-        const fs = await import('fs/promises');
-        const content = await fs.readFile(process.env.FIREBASE_CREDENTIALS_PATH, 'utf8');
-        const credentialData = JSON.parse(content);
-        console.log('Firebase 자격증명 파일이 유효한 JSON 형식입니다.');
-        console.log(`project_id: ${credentialData.project_id}, type: ${credentialData.type}`);
-      } catch (fileError) {
-        console.error('Firebase 자격증명 파일을 읽거나 파싱하는데 실패했습니다:', fileError.message);
-      }
-    }
-  }
+  // Firebase 초기화를 위한 필수 환경 변수 확인
+  const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
+  const FIREBASE_CLIENT_EMAIL = process.env.FIREBASE_CLIENT_EMAIL;
+  const FIREBASE_PRIVATE_KEY = process.env.FIREBASE_PRIVATE_KEY;
   
-  // 환경 변수로 Firebase 초기화 (우선)
-  if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
-    console.log('환경 변수를 사용하여 Firebase 초기화 시도...');
-    firebaseApp = initializeApp({
-      credential: credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  if (FIREBASE_PROJECT_ID && FIREBASE_CLIENT_EMAIL && FIREBASE_PRIVATE_KEY) {
+    // 환경 변수로 Firebase 초기화
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: FIREBASE_PROJECT_ID,
+        clientEmail: FIREBASE_CLIENT_EMAIL,
+        privateKey: FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
       }),
     });
     console.log('Firebase 초기화 완료 (환경변수 방식)');
-    try {
-      firebaseMessaging = messaging(firebaseApp);
-      console.log('Firebase 메시징 서비스 초기화 완료');
-    } catch (messagingError) {
-      console.error('Firebase 메시징 서비스 초기화 오류:', messagingError.message);
-    }
   } 
   // 파일로 초기화 (대체 방식)
   else if (process.env.FIREBASE_CREDENTIALS_PATH && existsSync(process.env.FIREBASE_CREDENTIALS_PATH)) {
     console.log('자격증명 파일을 사용하여 Firebase 초기화 시도...');
-    firebaseApp = initializeApp({
-      credential: credential.cert(process.env.FIREBASE_CREDENTIALS_PATH)
+    admin.initializeApp({
+      credential: admin.credential.cert(process.env.FIREBASE_CREDENTIALS_PATH)
     });
     console.log('Firebase 초기화 완료 (인증 파일 방식)');
-    try {
-      firebaseMessaging = messaging(firebaseApp);
-      console.log('Firebase 메시징 서비스 초기화 완료');
-    } catch (messagingError) {
-      console.error('Firebase 메시징 서비스 초기화 오류:', messagingError.message);
-    }
   } else {
     console.error('Firebase 인증 정보가 없습니다. FCM 알림 기능이 비활성화됩니다.');
   }
@@ -162,58 +132,27 @@ async function processArticles(boardId, articles) {
       if (existingArticles.total === 0) {
         const documentId = `${boardId}_${articleId}`;
         
-        // 게시글 저장 시도
         try {
-          const notificationData = {
-            boardId,
-            articleId,
-            title: article.title,
-            link: article.link,
-            pubDate: article.pubDate,
-            author: article.author,
-            description: article.description,
-            createdAt: new Date().toISOString(),
-          };
-          
-          console.log(`게시글 저장 시도 (${boardId}, ${articleId}):`, JSON.stringify(notificationData));
-          
           await databases.createDocument(
             APPWRITE_DATABASE_ID,
             APPWRITE_NOTIFICATIONS_COLLECTION_ID,
             documentId,
-            notificationData
+            {
+              boardId,
+              articleId,
+              title: article.title,
+              link: article.link,
+              pubDate: article.pubDate,
+              author: article.author,
+              description: article.description,
+              createdAt: new Date().toISOString(),
+            }
           );
           
           newArticles.push(article);
           console.log(`새 게시글 저장: [${boardId}] ${article.title}`);
         } catch (createError) {
           console.error(`게시글 저장 오류 (${boardId}, ${articleId}):`, createError.message);
-          // 필드 에러인 경우 필수 필드만 저장 시도
-          if (createError.message.includes('Unknown attribute')) {
-            try {
-              // 최소한의 필수 필드만 포함
-              await databases.createDocument(
-                APPWRITE_DATABASE_ID,
-                APPWRITE_NOTIFICATIONS_COLLECTION_ID,
-                documentId,
-                {
-                  boardId,
-                  articleId,
-                  title: article.title,
-                  link: article.link,
-                  pubDate: article.pubDate || new Date().toISOString(),
-                  author: article.author || '익명',
-                  description: article.description || '',
-                  createdAt: new Date().toISOString(),
-                }
-              );
-              
-              newArticles.push(article);
-              console.log(`필수 필드만으로 게시글 저장: [${boardId}] ${article.title}`);
-            } catch (retryError) {
-              console.error(`필수 필드 저장 시도 실패 (${boardId}, ${articleId}):`, retryError.message);
-            }
-          }
         }
       } else {
         // 이미 처리된 게시물이므로 중단
@@ -232,11 +171,6 @@ async function processArticles(boardId, articles) {
 async function sendNotifications(boardId, newArticles) {
   if (newArticles.length === 0) {
     console.log(`새 게시글이 없어 알림을 보내지 않습니다: ${boardId}`);
-    return;
-  }
-  
-  if (!firebaseApp || !firebaseMessaging) {
-    console.error('Firebase가 초기화되지 않았거나 메시징 모듈을 사용할 수 없어 알림을 보낼 수 없습니다.');
     return;
   }
   
@@ -283,17 +217,11 @@ async function sendNotifications(boardId, newArticles) {
         }
 
         try {
-          // Firebase 초기화 확인
-          if (!firebaseApp || !firebaseMessaging) {
-            console.error(`사용자 ${userId}에게 알림을 보낼 수 없습니다: Firebase가 초기화되지 않았습니다.`);
-            continue;
-          }
-
           // FCM 메시지 구성
           const message = {
             notification: {
-              title: `[${boardName}] ${article.title}`,
-              body: article.description.substring(0, 100) + (article.description.length > 100 ? '...' : '')
+              title: `[${boardName}] 새 공지사항`,
+              body: article.title,
             },
             data: {
               boardId,
@@ -304,8 +232,8 @@ async function sendNotifications(boardId, newArticles) {
           };
           
           // 개별 사용자에게 메시지 전송
-          await firebaseMessaging.send(message);
-          console.log(`사용자 ${userId}에게 알림 전송 완료: ${boardId} - ${article.title}`);
+          const response = await admin.messaging().send(message);
+          console.log(`사용자 ${userId}에게 알림 전송 완료: ${boardId} - ${article.title}, messageId: ${response}`);
         } catch (error) {
           console.error(`사용자 ${userId}에게 알림 전송 오류:`, error.message);
           
