@@ -30,11 +30,33 @@ const appwrite = new Client()
 const databases = new Databases(appwrite);
 
 // Firebase 설정
+let firebaseApp = null;
 let firebaseMessaging = null;
 try {
+  console.log('Firebase 초기화 시도...');
+  
+  // credentials.json 파일 확인
+  if (process.env.FIREBASE_CREDENTIALS_PATH) {
+    console.log(`Firebase 자격증명 파일 경로: ${process.env.FIREBASE_CREDENTIALS_PATH}`);
+    console.log(`파일 존재 여부: ${existsSync(process.env.FIREBASE_CREDENTIALS_PATH)}`);
+    if (existsSync(process.env.FIREBASE_CREDENTIALS_PATH)) {
+      try {
+        // 파일 내용 테스트
+        const fs = await import('fs/promises');
+        const content = await fs.readFile(process.env.FIREBASE_CREDENTIALS_PATH, 'utf8');
+        const credentialData = JSON.parse(content);
+        console.log('Firebase 자격증명 파일이 유효한 JSON 형식입니다.');
+        console.log(`project_id: ${credentialData.project_id}, type: ${credentialData.type}`);
+      } catch (fileError) {
+        console.error('Firebase 자격증명 파일을 읽거나 파싱하는데 실패했습니다:', fileError.message);
+      }
+    }
+  }
+  
   // 환경 변수로 Firebase 초기화 (우선)
   if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
-    const app = initializeApp({
+    console.log('환경 변수를 사용하여 Firebase 초기화 시도...');
+    firebaseApp = initializeApp({
       credential: credential.cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
@@ -42,20 +64,32 @@ try {
       }),
     });
     console.log('Firebase 초기화 완료 (환경변수 방식)');
-    firebaseMessaging = messaging();
+    try {
+      firebaseMessaging = messaging(firebaseApp);
+      console.log('Firebase 메시징 서비스 초기화 완료');
+    } catch (messagingError) {
+      console.error('Firebase 메시징 서비스 초기화 오류:', messagingError.message);
+    }
   } 
   // 파일로 초기화 (대체 방식)
   else if (process.env.FIREBASE_CREDENTIALS_PATH && existsSync(process.env.FIREBASE_CREDENTIALS_PATH)) {
-    const app = initializeApp({
+    console.log('자격증명 파일을 사용하여 Firebase 초기화 시도...');
+    firebaseApp = initializeApp({
       credential: credential.cert(process.env.FIREBASE_CREDENTIALS_PATH)
     });
     console.log('Firebase 초기화 완료 (인증 파일 방식)');
-    firebaseMessaging = messaging();
+    try {
+      firebaseMessaging = messaging(firebaseApp);
+      console.log('Firebase 메시징 서비스 초기화 완료');
+    } catch (messagingError) {
+      console.error('Firebase 메시징 서비스 초기화 오류:', messagingError.message);
+    }
   } else {
     console.error('Firebase 인증 정보가 없습니다. FCM 알림 기능이 비활성화됩니다.');
   }
 } catch (error) {
   console.error('Firebase 초기화 오류:', error.message);
+  console.error(error.stack);
 }
 
 // 게시판 목록
@@ -196,7 +230,15 @@ async function processArticles(boardId, articles) {
 
 // FCM 알림 전송 함수
 async function sendNotifications(boardId, newArticles) {
-  if (newArticles.length === 0 || !firebaseMessaging) return;
+  if (newArticles.length === 0) {
+    console.log(`새 게시글이 없어 알림을 보내지 않습니다: ${boardId}`);
+    return;
+  }
+  
+  if (!firebaseApp || !firebaseMessaging) {
+    console.error('Firebase가 초기화되지 않았거나 메시징 모듈을 사용할 수 없어 알림을 보낼 수 없습니다.');
+    return;
+  }
   
   const boardNames = {
     bachelor: '학사공지',
@@ -241,6 +283,12 @@ async function sendNotifications(boardId, newArticles) {
         }
 
         try {
+          // Firebase 초기화 확인
+          if (!firebaseApp || !firebaseMessaging) {
+            console.error(`사용자 ${userId}에게 알림을 보낼 수 없습니다: Firebase가 초기화되지 않았습니다.`);
+            continue;
+          }
+
           // FCM 메시지 구성
           const message = {
             notification: {
