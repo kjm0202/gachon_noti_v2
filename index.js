@@ -1,8 +1,10 @@
 import { get } from 'axios';
 import { Parser } from 'xml2js';
 import { Client, Databases, Query } from 'node-appwrite';
-import { initializeApp, credential as _credential, messaging } from 'firebase-admin';
+import pkg from 'firebase-admin';
 import { existsSync } from 'fs';
+
+const { initializeApp, credential, messaging } = pkg;
 
 // 환경 변수 설정
 const APPWRITE_ENDPOINT = process.env.APPWRITE_ENDPOINT;
@@ -32,7 +34,7 @@ try {
   // 환경 변수로 Firebase 초기화 (우선)
   if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
     initializeApp({
-      credential: _credential.cert({
+      credential: credential.cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
         privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
@@ -43,7 +45,7 @@ try {
   // 파일로 초기화 (대체 방식)
   else if (process.env.FIREBASE_CREDENTIALS_PATH && existsSync(process.env.FIREBASE_CREDENTIALS_PATH)) {
     initializeApp({
-      credential: _credential.cert(process.env.FIREBASE_CREDENTIALS_PATH)
+      credential: credential.cert(process.env.FIREBASE_CREDENTIALS_PATH)
     });
     console.log('Firebase 초기화 완료 (인증 파일 방식)');
   } else {
