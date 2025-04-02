@@ -63,7 +63,7 @@ try {
 }
 
 // 게시판 목록
-const boards = [
+const RSS_FEEDS = [
   { boardId: 'bachelor', url: 'https://www.gachon.ac.kr/bbs/kor/475/rssList.do?row=50' },
   { boardId: 'scholarship', url: 'https://www.gachon.ac.kr/bbs/kor/478/rssList.do?row=50' },
   { boardId: 'student', url: 'https://www.gachon.ac.kr/bbs/kor/479/rssList.do?row=50' },
@@ -73,6 +73,28 @@ const boards = [
   { boardId: 'dormGlobal', url: 'https://www.gachon.ac.kr/bbs/dormitory/330/rssList.do?row=50' },
   { boardId: 'dormMedical', url: 'https://www.gachon.ac.kr/bbs/dormitory/334/rssList.do?row=50' },
 ];
+
+/** Helper: CDATA or plain text 파싱 */
+function parseCDATA(value) {
+  if (!value) return '';
+  
+  let parsedValue = value;
+  
+  // CDATA 태그 제거
+  if (parsedValue.includes('<![CDATA[')) {
+    parsedValue = parsedValue
+      .replace('<![CDATA[', '')
+      .replace(']]>', '');
+  }
+  
+  // 앞뒤 공백 제거
+  parsedValue = parsedValue.trim();
+  
+  // 연속된 공백, 탭, 줄바꿈을 단일 공백으로 변경
+  parsedValue = parsedValue.replace(/[\s\t\r\n]+/g, ' ');
+  
+  return parsedValue;
+}
 
 // RSS 피드 파싱 함수
 async function parseRSS(url) {
@@ -91,11 +113,11 @@ async function parseRSS(url) {
       : [result.rss.channel.item];
     
     return items.map(item => ({
-      title: item.title.trim(),
+      title: parseCDATA(item.title),
       link: item.link,
       pubDate: item.pubDate,
       author: item.author || '익명',
-      description: item.description || '',
+      description: parseCDATA(item.description) || '',
     }));
   } catch (error) {
     console.error(`RSS 파싱 오류 (${url}):`, error.message);
@@ -107,6 +129,32 @@ async function parseRSS(url) {
 function extractArticleId(url) {
   const matches = url.match(/\/(\d+)\/artclView\.do/);
   return matches ? matches[1] : null;
+}
+
+/** Helper: pubDate -> ISO8601 변환 */
+function parsePubDate(dateStr) {
+  if (!dateStr) return null;
+  // 예: "2025.03.12 15:53:29" 형태 → "2025-03-12T15:53:29"
+  // 아래는 단순 예시. 실제 포맷에 맞춰 파싱
+  const replaced = dateStr.replace(/\./g, '-'); // 2025-03-12 15:53:29
+  const isoLike = replaced.replace(' ', 'T');  // 2025-03-12T15:53:29
+  return isoLike;
+}
+
+/** 게시판 ID에서 읽기 쉬운 이름으로 변환 */
+function getBoardName(boardId) {
+  const boardNames = {
+    'bachelor': '학사',
+    'scholarship': '장학',
+    'student': '학생',
+    'job': '취업',
+    'extracurricular': '비교과',
+    'other': '기타',
+    'dormGlobal': '글로벌 기숙사',
+    'dormMedical': '의학 기숙사',
+  };
+  
+  return boardNames[boardId] || boardId;
 }
 
 // 게시글 저장 및 새 게시글 확인 함수
@@ -142,7 +190,7 @@ async function processArticles(boardId, articles) {
               articleId,
               title: article.title,
               link: article.link,
-              pubDate: article.pubDate,
+              pubDate: parsePubDate(article.pubDate),
               author: article.author,
               description: article.description,
               createdAt: new Date().toISOString(),
@@ -174,18 +222,7 @@ async function sendNotifications(boardId, newArticles) {
     return;
   }
   
-  const boardNames = {
-    bachelor: '학사공지',
-    scholarship: '장학공지',
-    student: '학생공지',
-    job: '취업공지',
-    extracurricular: '교외활동',
-    other: '기타공지',
-    dormGlobal: '글로벌 기숙사',
-    dormMedical: '메디컬 기숙사'
-  };
-  
-  const boardName = boardNames[boardId] || boardId;
+  const boardName = getBoardName(boardId);
   
   for (const article of newArticles) {
     try {
@@ -267,19 +304,22 @@ async function sendNotifications(boardId, newArticles) {
 async function crawlBoards() {
   console.log(`크롤링 시작: ${new Date().toISOString()}`);
   
-  for (const board of boards) {
+  for (const feed of RSS_FEEDS) {
     try {
-      const articles = await parseRSS(board.url);
-      console.log(`${board.boardId}: ${articles.length}개 게시글 파싱 완료`);
+      const { boardId, url } = feed;
+      console.log(`RSS 확인 중: ${boardId} => ${url}`);
       
-      const newArticles = await processArticles(board.boardId, articles);
-      console.log(`${board.boardId}: ${newArticles.length}개 새 게시글 발견`);
+      const articles = await parseRSS(url);
+      console.log(`${boardId}: ${articles.length}개 게시글 파싱 완료`);
+      
+      const newArticles = await processArticles(boardId, articles);
+      console.log(`${boardId}: ${newArticles.length}개 새 게시글 발견`);
       
       if (newArticles.length > 0) {
-        await sendNotifications(board.boardId, newArticles);
+        await sendNotifications(boardId, newArticles);
       }
     } catch (error) {
-      console.error(`${board.boardId} 처리 중 오류:`, error.message);
+      console.error(`${feed.boardId} 처리 중 오류:`, error.message);
     }
   }
   
