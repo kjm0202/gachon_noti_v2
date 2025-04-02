@@ -20,6 +20,17 @@ class AuthProvider with ChangeNotifier {
     _checkAuthStatus();
   }
 
+  // 외부에서 인증 상태 확인 및 FCM 토큰 업데이트를 기다리는 메서드
+  Future<void> checkAndUpdateAuthStatus() async {
+    if (_status == AuthStatus.initial) {
+      // 초기 상태인 경우에만 _checkAuthStatus를 실행
+      await _checkAuthStatus();
+    }
+
+    // _checkAuthStatus 메서드가 이미 완료된 경우, 상태는 이미 결정됨
+    // 추가적인 작업 필요 없음
+  }
+
   // 로그인 상태 확인
   Future<void> _checkAuthStatus() async {
     try {

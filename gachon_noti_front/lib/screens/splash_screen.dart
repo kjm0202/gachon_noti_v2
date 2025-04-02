@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/firebase_service.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 
@@ -15,8 +16,8 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // 약간의 지연 후 인증 상태 확인
-    Future.delayed(const Duration(milliseconds: 2000), _checkAuth);
+    // 임의 지연 없이 바로 인증 체크 시작
+    _checkAuth();
   }
 
   Future<void> _checkAuth() async {
@@ -25,32 +26,26 @@ class _SplashScreenState extends State<SplashScreen> {
     // 상태가 변경될 때마다 화면 전환을 위해 리스너 등록
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-    // 이미 상태가 결정된 경우 바로 이동
-    if (authProvider.status == AuthStatus.authenticated) {
-      print('인증됨: 홈 화면으로 이동');
-      _navigateToHome();
-      return;
-    } else if (authProvider.status == AuthStatus.unauthenticated) {
-      print('인증되지 않음: 로그인 화면으로 이동');
-      _navigateToLogin();
-      return;
-    }
+    try {
+      // AuthProvider의 _checkAuthStatus 메서드 완료를 기다림
+      // 이 안에서 FCM 토큰 업데이트까지 수행됨
+      await authProvider.checkAndUpdateAuthStatus();
 
-    // 2초 후 상태 다시 확인하여 화면 전환
-    Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
 
-      final currentStatus =
-          Provider.of<AuthProvider>(context, listen: false).status;
-      print('지연 후 상태 확인: $currentStatus');
-
-      if (currentStatus == AuthStatus.authenticated) {
+      // 인증 상태에 따라 화면 전환
+      if (authProvider.status == AuthStatus.authenticated) {
+        print('인증됨: 홈 화면으로 이동');
         _navigateToHome();
       } else {
-        // initial 상태이거나 unauthenticated 상태이면 로그인 화면으로 이동
+        print('인증되지 않음: 로그인 화면으로 이동');
         _navigateToLogin();
       }
-    });
+    } catch (e) {
+      print('인증 프로세스 중 오류 발생: $e');
+      if (!mounted) return;
+      _navigateToLogin();
+    }
   }
 
   void _navigateToHome() {
