@@ -257,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
               title: const Text('알림 설정'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: 알림 설정 화면으로 이동
+                Navigator.pushNamed(context, '/subscription');
               },
             ),
             ListTile(

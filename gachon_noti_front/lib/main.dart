@@ -8,6 +8,7 @@ import 'providers/notification_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/subscription_screen.dart';
 import 'utils/constants.dart';
 
 void main() async {
@@ -66,6 +67,7 @@ class MyApp extends StatelessWidget {
           '/': (context) => const SplashScreen(),
           '/home': (context) => const HomeScreen(),
           '/login': (context) => const LoginScreen(),
+          '/subscription': (context) => const SubscriptionScreen(),
         },
         // PWA를 위한 설정
         debugShowCheckedModeBanner: false,
