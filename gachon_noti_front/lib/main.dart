@@ -13,17 +13,7 @@ import 'utils/constants.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Appwrite 설정 디버깅
-  debugPrint('Appwrite 설정:');
-  debugPrint('Endpoint: ${AppConstants.appwriteEndpoint}');
-  debugPrint('Project ID: ${AppConstants.appwriteProjectId}');
-  debugPrint('Database ID: ${AppConstants.databaseId}');
-  debugPrint('Users Collection: ${AppConstants.usersCollectionId}');
-  debugPrint(
-    'Notifications Collection: ${AppConstants.notificationsCollectionId}',
-  );
-
-  // Appwrite 서비스 초기화 (로깅 포함)
+  // Appwrite 서비스 초기화
   final appwriteService = AppwriteService();
 
   // Firebase 초기화 - 플랫폼별 조건부 처리

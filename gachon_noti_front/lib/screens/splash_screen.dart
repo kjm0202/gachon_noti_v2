@@ -13,6 +13,9 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  // 인증 체크가 진행 중인지 확인하는 플래그
+  bool _isAuthChecking = false;
+
   @override
   void initState() {
     super.initState();
@@ -21,6 +24,12 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkAuth() async {
+    // 이미 인증 체크가 진행 중이면 중복 실행 방지
+    if (_isAuthChecking) return;
+
+    // 인증 체크 시작 플래그 설정
+    _isAuthChecking = true;
+
     print('스플래시 화면에서 인증 상태 확인 중...');
 
     // 상태가 변경될 때마다 화면 전환을 위해 리스너 등록
@@ -45,6 +54,9 @@ class _SplashScreenState extends State<SplashScreen> {
       print('인증 프로세스 중 오류 발생: $e');
       if (!mounted) return;
       _navigateToLogin();
+    } finally {
+      // 인증 체크 완료 플래그 설정
+      _isAuthChecking = false;
     }
   }
 

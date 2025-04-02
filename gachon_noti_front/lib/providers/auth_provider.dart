@@ -16,8 +16,10 @@ class AuthProvider with ChangeNotifier {
   AuthStatus get status => _status;
   UserModel? get user => _user;
 
+  // 생성자에서 자동 체크하지 않음 - 스플래시 화면에서 명시적으로 호출
   AuthProvider() {
-    _checkAuthStatus();
+    // 초기 상태만 설정
+    _status = AuthStatus.initial;
   }
 
   // 외부에서 인증 상태 확인 및 FCM 토큰 업데이트를 기다리는 메서드

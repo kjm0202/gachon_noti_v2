@@ -44,10 +44,7 @@ class FirebaseService {
         // 메시지 클릭 처리
         FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
 
-        // 로그인 후 토픽 구독
-        if (await _appwriteService.isLoggedIn()) {
-          subscribeToTopic();
-        }
+        // 앱 시작시 자동 토픽 구독 제거 - 로그인 후 명시적으로 호출로 변경
       } catch (e) {
         print('Firebase Messaging 초기화 오류: $e');
       }
@@ -82,8 +79,12 @@ class FirebaseService {
   // FCM 토픽 구독
   Future<void> subscribeToTopic({String topic = 'gachon_notifications'}) async {
     try {
-      await _messaging.subscribeToTopic(topic);
-      print('토픽 구독 완료: $topic');
+      if (!kIsWeb) {
+        await _messaging.subscribeToTopic(topic);
+        print('토픽 구독 완료: $topic');
+      } else {
+        print('Web에서는 토픽 구독을 지원하지 않습니다.');
+      }
     } catch (e) {
       print('토픽 구독 오류: $e');
     }
@@ -94,8 +95,12 @@ class FirebaseService {
     String topic = 'gachon_notifications',
   }) async {
     try {
-      await _messaging.unsubscribeFromTopic(topic);
-      print('토픽 구독 해제 완료: $topic');
+      if (!kIsWeb) {
+        await _messaging.unsubscribeFromTopic(topic);
+        print('토픽 구독 해제 완료: $topic');
+      } else {
+        print('Web에서는 토픽 구독을 지원하지 않습니다.');
+      }
     } catch (e) {
       print('토픽 구독 해제 오류: $e');
     }
