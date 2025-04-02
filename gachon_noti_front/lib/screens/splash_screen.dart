@@ -1,0 +1,123 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import 'home_screen.dart';
+import 'login_screen.dart';
+
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // 약간의 지연 후 인증 상태 확인
+    Future.delayed(const Duration(milliseconds: 2000), _checkAuth);
+  }
+
+  Future<void> _checkAuth() async {
+    print('스플래시 화면에서 인증 상태 확인 중...');
+
+    // 상태가 변경될 때마다 화면 전환을 위해 리스너 등록
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    // 이미 상태가 결정된 경우 바로 이동
+    if (authProvider.status == AuthStatus.authenticated) {
+      print('인증됨: 홈 화면으로 이동');
+      _navigateToHome();
+      return;
+    } else if (authProvider.status == AuthStatus.unauthenticated) {
+      print('인증되지 않음: 로그인 화면으로 이동');
+      _navigateToLogin();
+      return;
+    }
+
+    // 2초 후 상태 다시 확인하여 화면 전환
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+
+      final currentStatus =
+          Provider.of<AuthProvider>(context, listen: false).status;
+      print('지연 후 상태 확인: $currentStatus');
+
+      if (currentStatus == AuthStatus.authenticated) {
+        _navigateToHome();
+      } else {
+        // initial 상태이거나 unauthenticated 상태이면 로그인 화면으로 이동
+        _navigateToLogin();
+      }
+    });
+  }
+
+  void _navigateToHome() {
+    if (!mounted) return;
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
+  }
+
+  void _navigateToLogin() {
+    if (!mounted) return;
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF00539C), // 가천대학교 블루 색상
+              Color(0xFF0072CE),
+            ],
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // 로고 이미지
+            Image.asset(
+              'assets/images/logo.png',
+              width: 120,
+              height: 120,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(Icons.school, size: 120, color: Colors.white);
+              },
+            ),
+            const SizedBox(height: 24),
+            // 앱 이름
+            const Text(
+              '가천 알림',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 12),
+            // 앱 설명
+            const Text(
+              '가천대학교 공지사항 알림 서비스',
+              style: TextStyle(fontSize: 16, color: Colors.white70),
+            ),
+            const SizedBox(height: 48),
+            // 로딩 인디케이터
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

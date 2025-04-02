@@ -1,0 +1,61 @@
+name: 가천대학교 게시판 크롤링
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # 15분마다 실행
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 소스코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'gachon_noti_crawler/package.json'
+
+      - name: 의존성 설치
+        run: |
+          cd gachon_noti_crawler
+          npm install
+
+      - name: Firebase 서비스 계정 파일 생성 (대체 방식)
+        run: |
+          cd gachon_noti_crawler
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > firebase-credentials.json
+
+      - name: 환경 변수 파일 생성
+        run: |
+          cd gachon_noti_crawler
+          echo "APPWRITE_ENDPOINT=${{ secrets.APPWRITE_ENDPOINT }}" > .env
+          echo "APPWRITE_PROJECT_ID=${{ secrets.APPWRITE_PROJECT_ID }}" >> .env
+          echo "APPWRITE_API_KEY=${{ secrets.APPWRITE_API_KEY }}" >> .env
+          echo "APPWRITE_DATABASE_ID=${{ secrets.APPWRITE_DATABASE_ID }}" >> .env
+          echo "APPWRITE_COLLECTION_ID=${{ secrets.APPWRITE_COLLECTION_ID }}" >> .env
+          echo "FIREBASE_CREDENTIALS_PATH=./firebase-credentials.json" >> .env
+          echo "FIREBASE_TOPIC=${{ secrets.FIREBASE_TOPIC }}" >> .env
+          # 환경 변수 방식 추가
+          echo "FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}" >> .env
+          echo "FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}" >> .env
+          echo "FIREBASE_PRIVATE_KEY=${{ secrets.FIREBASE_PRIVATE_KEY }}" >> .env
+
+      - name: 크롤링 실행
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          APPWRITE_DATABASE_ID: ${{ secrets.APPWRITE_DATABASE_ID }}
+          APPWRITE_COLLECTION_ID: ${{ secrets.APPWRITE_COLLECTION_ID }}
+          FIREBASE_TOPIC: ${{ secrets.FIREBASE_TOPIC }}
+          # 직접 환경 변수로도 전달
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+        run: |
+          cd gachon_noti_crawler
+          node index.js

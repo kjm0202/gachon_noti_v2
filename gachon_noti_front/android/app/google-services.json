@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "606642618462",
+    "project_id": "gachon-noti-v2-fc11a",
+    "storage_bucket": "gachon-noti-v2-fc11a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:606642618462:android:3892b2a51aa35ffdc9f4cf",
+        "android_client_info": {
+          "package_name": "com.example.gachon_noti_v2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCB5Vgg7EPI3cCuADXGVtCTCV3q7HBn-8c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
